@@ -1,6 +1,6 @@
 #include "apue.h"
 #include<dirent.h>
-
+#include <sys/wait.h>
 
 //  ./ls /Users/wankun
 //  实现ls
@@ -86,10 +86,60 @@ void shell(){
     }
     exit(0);
 }
+
+//  获取用户id与组id
+void id(){
+    printf("uid = %d, gid = %d", getuid(), getgid());
+}
+
+//  处理了中断信号的shell
+
+//  信号处理函数
+static void sig_int(int){
+    printf("interrupt\n%%= ");
+}
+
+void shell_sig(){
+    char buf[MAXLINE];// from apue.h referrnce
+    pid_t pid;
+    int status;
+
+    if(signal(SIGINT, sig_int) == SIG_ERR)//处理信号
+        err_sys("signal error");
+
+    printf("%%");
+    while(fgets(buf,MAXLINE,stdin)!=NULL){
+        if((buf[strlen(buf)-1])=='\n')
+            buf[strlen(buf)-1]=0;//relplace newline with null，因为命令不是以/n结尾而是以null结尾
+
+        printf("parent: ");//加入pid显示
+        pid_display();
+
+        if ( (pid = fork() ) < 0)//调用一次，返回两次，父进程返回一次，子进程返回一次
+            err_sys("fork error");
+        else if(pid==0){//子进程返回为0
+
+            printf("child: ");//加入pid显示
+            pid_display();
+
+            execlp(buf,buf, (char*)0);
+            err_ret("couldn't execute :%s ",buf);
+            exit(127);
+        }
+
+        if((pid=waitpid(pid,&status,0))<0)//父进程等待子进程结束，waitpid返回的子进程的终止状态（status变量）
+            err_sys("waitpaid error");
+        printf("%%");
+    }
+    exit(0);
+}
+
 int main(int argc,char **argv) {
 //    ls(argc, argv);
 //    cp();
 //    cp_std();
 //    pid_display();
-    shell();
+//    shell();
+//    id();
+    shell_sig();
 }
